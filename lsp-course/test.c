@@ -96,7 +96,7 @@ void *consumer_one_work(void *data_ptr) {
 
 	/* Enter the critical section and operate on the shared resource safely */
 	update_int_data(&sb_ptr->buffer, CONSUMER_ONE_VALUE);
-
+	
 	/* Exit the critical section and release lock */
 	pthread_mutex_unlock(&mutex);
 
