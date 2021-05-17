@@ -1,8 +1,6 @@
 .PHONY = all clean
-
 # Set the compiler tool here
 CC = gcc
-
 # Set linker flags here
 LINKERFLAG = -lpthread
 # Debug level
