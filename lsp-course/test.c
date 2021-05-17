@@ -59,12 +59,34 @@ static inline int random_sleep() {
 	return ret;
 }
 
+void update_int_data(int *int_ptr, int val) {
+	int temp = 0;
+	int sleep_ts = 0;
+
+	if (NULL == int_ptr) {
+		fprintf(stderr, "%s: null int ptr arg found!\n", __func__);
+		return;
+	}
+	if (val == 0) {
+		fprintf(stderr, "%s: expected a negative/positive value!\n", __func__);
+		return;
+	}
+	sleep_ts = random_sleep();
+	temp = *int_ptr;
+	sleep(sleep_ts);
+
+	/* Modify the shared resource data copy */
+	if (temp > 0)
+		temp += val;
+
+	/* Update the shared data variable reference with the local copy */
+	*int_ptr = temp;
+}
+
 /* Body of the first competing thread (process) */
 /* The example assumes a thread is equivalent to a lightweight process */
 void *consumer_one_work(void *data_ptr) {
 	struct shared_block *sb_ptr = NULL;
-	int sleep_ts = 0;
-	int temp = 0;
 
 	/* Obtain the reference to the shared data object */
 	sb_ptr = (struct shared_block *)(data_ptr);
@@ -73,18 +95,8 @@ void *consumer_one_work(void *data_ptr) {
 	pthread_mutex_lock(&mutex);
 
 	/* Enter the critical section and operate on the shared resource safely */
-	sleep_ts = random_sleep();
-	temp = sb_ptr->buffer;
-	sleep(sleep_ts);
+	update_int_data(&sb_ptr->buffer, CONSUMER_ONE_VALUE);
 
-	/* Access and modify the shared resource data copy */
-	if (temp > 0) {
-		temp -= 9;
-	}
-
-	/* Update the shared data variable reference with the local copy */
-	sb_ptr->buffer = temp;
-	
 	/* Exit the critical section and release lock */
 	pthread_mutex_unlock(&mutex);
 
@@ -95,8 +107,6 @@ void *consumer_one_work(void *data_ptr) {
 /* Body of the second competing thread */
 void *consumer_two_work(void *data_ptr) {
 	struct shared_block *sb_ptr = NULL;
-	int sleep_ts = 0;
-	int temp = 0;
 
 	/* Obtain the reference to the shared data object */
 	sb_ptr = (struct shared_block *)(data_ptr);
@@ -105,17 +115,7 @@ void *consumer_two_work(void *data_ptr) {
 	pthread_mutex_lock(&mutex);
 
 	/* Enter the critical section and operate on the shared resource safely */
-	sleep_ts = random_sleep();
-	temp = sb_ptr->buffer;
-	sleep(sleep_ts);
-
-	/* Access and modify the shared resource dara copy */
-	if (temp > 0) {
-		temp += 6;
-	}
-
-	/* Update the shared data variable reference with the local copy */
-	sb_ptr->buffer = temp;
+	update_int_data(&sb_ptr->buffer, CONSUMER_TWO_VALUE);
 
 	/* Exit the critical section and release lock */
 	pthread_mutex_unlock(&mutex);
@@ -157,6 +157,10 @@ int destroy_thr_attribute(pthread_attr_t * attr) {
 /* Create the competing threads */
 int create_thr_array(pthread_t * thr, pthread_attr_t * attr,
 		     struct shared_block *sb_ptr) {
+	work_func_t worker_arr[NUM_THREADS] = {
+		consumer_one_work,
+		consumer_two_work
+	};
 	int ret = EXIT_FAILURE;
 	int res[NUM_THREADS];
 	int idx;
@@ -173,13 +177,10 @@ int create_thr_array(pthread_t * thr, pthread_attr_t * attr,
 		fprintf(stderr, "%s: expected 2 threads!\n", __func__);
 		return ret;
 	}
-	res[0] = pthread_create(&thr[0], attr,
-				consumer_one_work, (void *)sb_ptr);
-	res[NUM_THREADS - 1] = pthread_create(&thr[NUM_THREADS - 1], attr,
-					      consumer_two_work,
-					      (void *)sb_ptr);
 
 	for (idx = 0; idx < NUM_THREADS; idx++) {
+		res[idx] = pthread_create(&thr[idx], attr, worker_arr[idx],
+					(void *)sb_ptr);
 		if (res[idx] != EXIT_SUCCESS) {
 			fprintf(stderr, "%s: error creating thread: %d!\n",
 				__func__, idx);
@@ -215,6 +216,8 @@ void init_shared_data(struct shared_block *sb_ptr) {
 
 	/* Provide initial value for the shared data buffer */
 	sb_ptr->buffer = 10;
+
+	/* I don't think a memory barrier is need here or in this example at all */
 }
 
 int main(int argc, char *argv[]) {
