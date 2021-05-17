@@ -61,65 +61,62 @@ static inline int random_sleep() {
 
 /* Body of the first competing thread (process) */
 /* The example assumes a thread is equivalent to a lightweight process */
-void *producer_work(void *data_ptr) {
+void *consumer_one_work(void *data_ptr) {
 	struct shared_block *sb_ptr = NULL;
 	int sleep_ts = 0;
 	int temp = 0;
-	fprintf(stdout, "in producer_work thread\n");
+
 	/* Obtain the reference to the shared data object */
 	sb_ptr = (struct shared_block *)(data_ptr);
 
-	/* mutex lock implemented with infinite loop */
+	pthread_mutex_lock(&mutex);
+	/* Enter the critical section and operate on the shared resource safely */
+	fprintf(stdout, "Mutex lock in consumer one thread obtained.\n");
+	sleep_ts = random_sleep();
+	temp = sb_ptr->buffer;
+	sleep(sleep_ts);
 
-		pthread_mutex_lock(&mutex);
-		fprintf(stdout, "after mutex lock in producer");
-		/* work on the shared object */
-		sleep_ts = random_sleep();
-		temp = sb_ptr->buffer;
-		sleep(sleep_ts);
+	/* Access and modify the shared resource data copy */
+	if (temp > 0) {
+		temp -= 9;//TODO: make an arg and pass it
+	}
 
-		/* Access and modify the shared resource data copy */
-		if (temp > 0) {
-			temp -= 9;
-		}
-		/* Update the shared data variable reference with the local copy */
-		sb_ptr->buffer = temp;
-		fprintf(stdout, "job done in producer now unlock\n");
-		pthread_mutex_unlock(&mutex);
-	
+	/* Update the shared data variable reference with the local copy */
+	sb_ptr->buffer = temp;
+	/* Exit the critical section and release lock */
+	pthread_mutex_unlock(&mutex);
+	fprintf(stdout, "Mutex lock in consumer one thread released.\n");
 
 	fprintf(stdout, "%s complete\n", __func__);
 	pthread_exit((void *)sb_ptr);
 }
 
 /* Body of the second competing thread */
-void *consumer_work(void *data_ptr) {
+void *consumer_two_work(void *data_ptr) {
 	struct shared_block *sb_ptr = NULL;
 	int sleep_ts = 0;
 	int temp = 0;
 
 	/* Obtain the reference to the shared data object */
 	sb_ptr = (struct shared_block *)(data_ptr);
-	fprintf(stdout, "in consumer_work thread\n");
 
-		pthread_mutex_lock(&mutex);
-		fprintf(stdout, "after lock in consumer\n");
+	pthread_mutex_lock(&mutex);
+	/* Enter the critical section and operate on the shared resource safely */
+	fprintf(stdout, "Mutex lock in consumer two thread obtained.\n");
+	sleep_ts = random_sleep();
+	temp = sb_ptr->buffer;
+	sleep(sleep_ts);
 
-		/* Enter into the critical section and manipulate the data safely */
-		sleep_ts = random_sleep();
-		temp = sb_ptr->buffer;
-		sleep(sleep_ts);
+	/* Access and modify the shared resource dara copy */
+	if (temp > 0) {
+		temp += 6;
+	}
 
-		/* Access and modify the shared resource dara copy */
-		if (temp > 0) {
-			temp += 6;
-		}
-
-		/* Update the shared data variable reference with the local copy */
-		sb_ptr->buffer = temp;
-		fprintf(stdout, "job done in consumer now unlock");
-		pthread_mutex_unlock(&mutex);
-		
+	/* Update the shared data variable reference with the local copy */
+	sb_ptr->buffer = temp;
+	/* Exit the critical section and release lock */
+	pthread_mutex_unlock(&mutex);
+	fprintf(stdout, "Mutex lock in consumer two thread released.\n");
 
 	fprintf(stdout, "%s complete\n", __func__);
 	pthread_exit((void *)sb_ptr);
@@ -175,9 +172,9 @@ int create_thr_array(pthread_t * thr, pthread_attr_t * attr,
 		return ret;
 	}
 	res[0] = pthread_create(&thr[0], attr,
-				producer_work, (void *)sb_ptr);
+				consumer_one_work, (void *)sb_ptr);
 	res[NUM_THREADS - 1] = pthread_create(&thr[NUM_THREADS - 1], attr,
-					      consumer_work,
+					      consumer_two_work,
 					      (void *)sb_ptr);
 
 	for (idx = 0; idx < NUM_THREADS; idx++) {
