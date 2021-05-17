@@ -28,11 +28,8 @@
  * https://github.com/MM-Solutions/lsp-course
  */
 
-/*
- * Questions:
- * 1. Is the proposed program understandable and clear?
- * 2. Try to answer the inline questions below as well.
- */
+/* Initiliaze mutex */
+pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;
 
 /* Primitive error print and exit function. */
 static inline void exit_err(int err, const char *msg) {
@@ -64,104 +61,9 @@ static inline int random_sleep() {
 
 /* Body of the first competing thread (process) */
 /* The example assumes a thread is equivalent to a lightweight process */
-void *consumer_one_work(void *data_ptr) {
-	struct shared_block *sb_ptr = NULL;
-	int sleep_ts = 0;
-	int temp = 0;
-
-	/* Obtain the reference to the shared data object */
-	sb_ptr = (struct shared_block *)(data_ptr);
-
-	/* Give priority to the second process, if it has become ready */
-	sb_ptr->ready[0] = true;
-	sb_ptr->turn_idx = 1;
-
-	/* Attempt to place a memory barrier */
-	/* Is this specialized memory access synchronization necessary? */
-	/* Can you think of any implementation defined constraints? */
-	__sync_synchronize();
-
-	/* Busy wait, if the second process is active */
-	/* This helps ensure a basic form of mutual exclusion */
-	while (sb_ptr->ready[1] == true && sb_ptr->turn_idx == 1) {
-		fprintf(stdout, "thread: %d blocked and waiting\n", 0);
-		sleep(1);
-		;
-	}
-
-	/* Enter into the critical section and manipulate the data safely */
-	sleep_ts = random_sleep();
-	temp = sb_ptr->buffer;
-	sleep(sleep_ts);
-
-	/* Access and modify the shared resource data copy */
-	if (temp > 0) {
-		temp -= 9;
-	}
-
-	/* Update the shared data variable reference with the local copy */
-	sb_ptr->buffer = temp;
-
-	/* Exit the critical section and let the other process become unblocked */
-	sb_ptr->ready[0] = false;
-	__sync_synchronize();
-
-	fprintf(stdout, "%s complete\n", __func__);
-	pthread_exit((void *)sb_ptr);
-}
-
-/* Body of the second competing thread */
-void *consumer_two_work(void *data_ptr) {
-	struct shared_block *sb_ptr = NULL;
-	int sleep_ts = 0;
-	int temp = 0;
-
-	/* Obtain the reference to the shared data object */
-	sb_ptr = (struct shared_block *)(data_ptr);
-
-	/* Give priority to the first process, if it has become ready */
-	sb_ptr->ready[1] = true;
-	sb_ptr->turn_idx = 0;
-
-	/* Attempt to place a memory barrier */
-	__sync_synchronize();
-
-	/* Busy wait, if the first process is active */
-	/* This helps ensure a basic form of mutual exclusion */
-	while (sb_ptr->ready[0] == true && sb_ptr->turn_idx == 0) {
-		fprintf(stdout, "thread: %d blocked and waiting\n", 1);
-		sleep(1);
-		;
-	}
-	/* Enter into the critical section and manipulate the data safely */
-	sleep_ts = random_sleep();
-	temp = sb_ptr->buffer;
-	sleep(sleep_ts);
-
-	/* Access and modify the shared resource dara copy */
-	if (temp > 0) {
-		temp += 6;
-	}
-
-	/* Update the shared data variable reference with the local copy */
-	sb_ptr->buffer = temp;
-
-	/* Exit the critical section and let the other process become unblocked */
-	sb_ptr->ready[1] = false;
-	__sync_synchronize();
-
-	fprintf(stdout, "%s complete\n", __func__);
-	pthread_exit((void *)sb_ptr);
-}
-
-/* Body of the first competing thread (process) */
-/* The example assumes a thread is equivalent to a lightweight process */
-
-pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;
-
 void *producer_work(void *data_ptr) {
 	struct shared_block *sb_ptr = NULL;
-	//int sleep_ts = 0;
+	int sleep_ts = 0;
 	int temp = 0;
 	fprintf(stdout, "in producer_work thread\n");
 	/* Obtain the reference to the shared data object */
@@ -172,9 +74,9 @@ void *producer_work(void *data_ptr) {
 		pthread_mutex_lock(&mutex);
 		fprintf(stdout, "after mutex lock in producer");
 		/* work on the shared object */
-		//sleep_ts = random_sleep();
+		sleep_ts = random_sleep();
 		temp = sb_ptr->buffer;
-		//sleep(sleep_ts);
+		sleep(sleep_ts);
 
 		/* Access and modify the shared resource data copy */
 		if (temp > 0) {
@@ -193,7 +95,7 @@ void *producer_work(void *data_ptr) {
 /* Body of the second competing thread */
 void *consumer_work(void *data_ptr) {
 	struct shared_block *sb_ptr = NULL;
-	//int sleep_ts = 0;
+	int sleep_ts = 0;
 	int temp = 0;
 
 	/* Obtain the reference to the shared data object */
@@ -204,9 +106,9 @@ void *consumer_work(void *data_ptr) {
 		fprintf(stdout, "after lock in consumer\n");
 
 		/* Enter into the critical section and manipulate the data safely */
-		//sleep_ts = random_sleep();
+		sleep_ts = random_sleep();
 		temp = sb_ptr->buffer;
-		//sleep(sleep_ts);
+		sleep(sleep_ts);
 
 		/* Access and modify the shared resource dara copy */
 		if (temp > 0) {
@@ -306,22 +208,14 @@ int wait_thr_complete(pthread_t * thr, void **state) {
 }
 
 void init_shared_data(struct shared_block *sb_ptr) {
-	int idx;
 
 	if (NULL == sb_ptr) {
 		fprintf(stderr, "%s: null shared ptr arg found!\n", __func__);
 		exit_err(-1, "shared data pointer is null");
 	}
-	/* Reset ready flags here */
-	for (idx = 0; idx < NUM_THREADS; idx++) {
-		sb_ptr->ready[idx] = false;
-	}
-	/* Provide initial values for the shared data variables */
+
+	/* Provide initial value for the shared data buffer */
 	sb_ptr->buffer = 10;
-	/* Unblock the first thread only */
-	sb_ptr->turn_idx = 1;
-	/* Attempt to place a memory barrier */
-	__sync_synchronize();
 }
 
 int main(int argc, char *argv[]) {
