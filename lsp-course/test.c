@@ -69,23 +69,24 @@ void *consumer_one_work(void *data_ptr) {
 	/* Obtain the reference to the shared data object */
 	sb_ptr = (struct shared_block *)(data_ptr);
 
+	/* Lock the mutex */
 	pthread_mutex_lock(&mutex);
+
 	/* Enter the critical section and operate on the shared resource safely */
-	fprintf(stdout, "Mutex lock in consumer one thread obtained.\n");
 	sleep_ts = random_sleep();
 	temp = sb_ptr->buffer;
 	sleep(sleep_ts);
 
 	/* Access and modify the shared resource data copy */
 	if (temp > 0) {
-		temp -= 9;//TODO: make an arg and pass it
+		temp -= 9;
 	}
 
 	/* Update the shared data variable reference with the local copy */
 	sb_ptr->buffer = temp;
+	
 	/* Exit the critical section and release lock */
 	pthread_mutex_unlock(&mutex);
-	fprintf(stdout, "Mutex lock in consumer one thread released.\n");
 
 	fprintf(stdout, "%s complete\n", __func__);
 	pthread_exit((void *)sb_ptr);
@@ -100,9 +101,10 @@ void *consumer_two_work(void *data_ptr) {
 	/* Obtain the reference to the shared data object */
 	sb_ptr = (struct shared_block *)(data_ptr);
 
+	/* Lock the mutex */
 	pthread_mutex_lock(&mutex);
+
 	/* Enter the critical section and operate on the shared resource safely */
-	fprintf(stdout, "Mutex lock in consumer two thread obtained.\n");
 	sleep_ts = random_sleep();
 	temp = sb_ptr->buffer;
 	sleep(sleep_ts);
@@ -114,9 +116,9 @@ void *consumer_two_work(void *data_ptr) {
 
 	/* Update the shared data variable reference with the local copy */
 	sb_ptr->buffer = temp;
+
 	/* Exit the critical section and release lock */
 	pthread_mutex_unlock(&mutex);
-	fprintf(stdout, "Mutex lock in consumer two thread released.\n");
 
 	fprintf(stdout, "%s complete\n", __func__);
 	pthread_exit((void *)sb_ptr);
