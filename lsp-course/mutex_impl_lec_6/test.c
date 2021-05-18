@@ -15,9 +15,10 @@
 /*
  * The purpose of the program is to help illustrate
  * a high-level software example of mutual exclusion
- * between two processes using the Peterson's algorithm.
+ * between two processes using mutexes instead of the Peterson's
+ * algorithm.
  * The code presented in based on:
- * https://en.wikipedia.org/wiki/Peterson%27s_algorithm
+ * https://github.com/MM-Solutions/lsp-course/tree/main/listings/lec_6/example_2
  *
  * The program is to be used for educational purposes
  * only and the author(s) are not responsible for any
