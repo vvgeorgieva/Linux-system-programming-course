@@ -12,7 +12,7 @@ void print_arr(int *arr, const int N) {
 	}
 
 	for (i = 0; i < N; i++) {
-		printf("arr[%d] = %d\n", i, arr[i]);
+		printf("%d\t", arr[i]);
 	}
 }
 
@@ -42,34 +42,37 @@ int partition(int *arr, int lower, int upper) {
 	return (i + 1);
 }
 
-void *q_sort(void *data_ptr) {
-	int pivot;
-	pthread_t threads[2];
-	struct shared_block *sb = (struct shared_block *) data_ptr;
-	struct shared_block l_sb;
-	struct shared_block r_sb;	
+pthread_t thread;
 
-	if (data_ptr == NULL) {
-		fprintf(stderr, "%s: null int ptr arg found!\n", __func__);
+void *q_sort(void *data_ptr) {
+	int ret = EXIT_FAILURE;
+	int pivot;
+	struct shared_block *sb = (struct shared_block *) data_ptr;
+	struct shared_block *lb = (struct shared_block *) data_ptr;
+
+	int upper = sb->upper;
+	int lower = sb->lower;
+
+	if (lower < upper) {
+		pivot = partition(sb->arr, sb->lower, sb->upper);
+
+		lb->lower = pivot + 1;
+		lb->upper = upper;
+		q_sort(lb);
+
+		ret = pthread_create(&thread, NULL, q_sort, lb);
+		if (ret != 0) {
+			fprintf(stderr, "%s: Thread creation failed!\n", __func__);
+		}
+
+		lb->lower = lower;
+		lb->upper = pivot - 1;
+		q_sort(lb);
+
+		pthread_join(thread, NULL);
 	}
 
-	pivot = partition(sb->arr, sb->lower, sb->upper);
-
-	l_sb.lower = sb->lower;
-	l_sb.upper = pivot - 1;
-	l_sb.arr = sb->arr;
-
-	r_sb.lower = pivot + 1;
-	r_sb.upper = sb->upper;
-	r_sb.arr = sb->arr;
-
-	/* Create two competing threads */
-	threads[0] = pthread_create(&threads[0], NULL, q_sort, &l_sb);
-	threads[1] = pthread_create(&threads[1], NULL, q_sort, &r_sb);
-
-	/* Join threads */
-	pthread_join(threads[0], NULL);
-	pthread_join(threads[1], NULL);
+	return 0;
 }
 
 int main() {
@@ -87,15 +90,10 @@ int main() {
 	sb->upper = N - 1;
 	sb->lower = 0;
 
-	/* Use helper function to print the initial array */
-	printf("Unsorted array: \n");
-	print_arr(arr, N);
-
-	/* Calling the traditional qsort function */
+	/* Calling the q_sort function */
 	q_sort(sb);
 
 	/* Last but not least, use helper function to print the sorted array */
-	printf("Sorted array: \n");
 	print_arr(sb->arr, N);
 
 	return 0;
