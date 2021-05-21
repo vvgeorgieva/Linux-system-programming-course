@@ -16,12 +16,14 @@ void print_arr(int *arr, const int N) {
 	}
 }
 
+/* Swap function for elements */
 void swap(int *a, int *b) {
 	int t = *a;
 	*a = *b;
 	*b = t;
 }
 
+/* Return pivot element from the given array and its bounds */
 int partition(int *arr, int lower, int upper) {
 	int i, j;
 	if (arr == NULL) {
@@ -42,33 +44,41 @@ int partition(int *arr, int lower, int upper) {
 	return (i + 1);
 }
 
-pthread_t thread;
-
 void *q_sort(void *data_ptr) {
 	int ret = EXIT_FAILURE;
 	int pivot;
+	pthread_t thread;
 	struct shared_block *sb = (struct shared_block *) data_ptr;
 	struct shared_block *lb = (struct shared_block *) data_ptr;
 
+	/* Set upper and lower values from the given data_ptr */
 	int upper = sb->upper;
 	int lower = sb->lower;
 
 	if (lower < upper) {
+		/* Find the pivot element */
 		pivot = partition(sb->arr, sb->lower, sb->upper);
 
+		/* Use second struct in order to pass it as an arg to the 
+		 * thread creation function. Set its values according to the
+		 * quick sort algorithm.
+		 */
 		lb->lower = pivot + 1;
 		lb->upper = upper;
-		q_sort(lb);
+		lb->arr = sb->arr;
 
+		/* Create thread and pass new struct to it along with the qsort function */
 		ret = pthread_create(&thread, NULL, q_sort, lb);
 		if (ret != 0) {
 			fprintf(stderr, "%s: Thread creation failed!\n", __func__);
 		}
 
+		/* Work on the other half of the array */
 		lb->lower = lower;
 		lb->upper = pivot - 1;
 		q_sort(lb);
 
+		/* Join the thread */
 		pthread_join(thread, NULL);
 	}
 
@@ -86,7 +96,7 @@ int main() {
 	/* Set the initial data set to the newly allocated struct array */
 	sb->arr = arr;
 	
-	/* Set initial values to struct memebers */
+	/* Set initial values to struct members */
 	sb->upper = N - 1;
 	sb->lower = 0;
 
