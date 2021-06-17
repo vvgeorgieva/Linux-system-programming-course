@@ -5,12 +5,12 @@
 #include <string.h>
 
 #define NUM_THREADS	2
-
-pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;
 static const int N	= 10;
+
+/* Initial set */
+int arr[] = {1, 2, 5, 6, 8, 9, 10, 8, 5, 11};
 
 struct shared_block {
 	int upper;
 	int lower;
-	int *arr;
 };

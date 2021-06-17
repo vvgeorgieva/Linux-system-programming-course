@@ -42,41 +42,44 @@ int partition(int *arr, int lower, int upper) {
 	return (i + 1);
 }
 
-pthread_t thread[NUM_THREADS];
-
 void *q_sort(void *data_ptr) {
 	int ret = EXIT_FAILURE;
+	pthread_t thread[NUM_THREADS];
+	pthread_t me;
 	int pivot;
 	struct shared_block *sb = (struct shared_block *) data_ptr;
-	struct shared_block *lb = (struct shared_block *) data_ptr;
+	struct shared_block lb, rb;
 
 	/* Set upper and lower values from the given data_ptr */
 	int upper = sb->upper;
 	int lower = sb->lower;
 
+	me = pthread_self();
+
 	if (lower < upper) {
 		/* Find the pivot element */
-		pivot = partition(sb->arr, sb->lower, sb->upper);
+		pivot = partition(arr, sb->lower, sb->upper);
 
 		/* Use second struct in order to pass it as an arg to the 
 		 * thread creation function. Set its values according to the
 		 * quick sort algorithm.
 		 */
+		printf("\nThread pid: %lu\nCreate left and right threads.\n", me);
 
-		lb->lower = pivot + 1;
-		lb->upper = upper;
+		lb.lower = pivot + 1;
+		lb.upper = upper;
 		/* Create thread and pass new struct to it along with the qsort function */
-		ret = pthread_create(&thread[0], NULL, q_sort, lb);
+		ret = pthread_create(&thread[0], NULL, q_sort, &lb);
 		if (ret != 0) {
 			fprintf(stderr, "%s: Thread creation failed!\n", __func__);
 		}
 
 		/* Set new values to the struct */
-		lb->lower = lower;
-		lb->upper = pivot - 1;
+		rb.lower = lower;
+		rb.upper = pivot - 1;
 
 		/* Create thread and pass new struct to it along with the qsort function */
-		ret = pthread_create(&thread[1], NULL, q_sort, lb);
+		ret = pthread_create(&thread[1], NULL, q_sort, &rb);
 		if (ret != 0) {
 			fprintf(stderr, "%s: Thread creation failed!\n", __func__);
 		}
@@ -90,25 +93,31 @@ void *q_sort(void *data_ptr) {
 }
 
 int main() {
-	/* Initial set */
-	int arr[] =
-		{1, 2, 5, 6, 8, 9, 10, 8, 5, 11};
+	int ret = EXIT_FAILURE;
 
 	/* Declare shared_block and allocate memory for the struct */
-	struct shared_block *sb = (struct shared_block *)malloc(sizeof(struct shared_block));
+	struct shared_block sb;
+	pthread_t me, start_thread;
 
-	/* Set the initial data set to the newly allocated struct array */
-	sb->arr = arr;
+	/* The whole solution to the problem lies on the idea of thread locality, BST and stack */
+	me = pthread_self();
 	
-	/* Set initial values to struct memebers */
-	sb->upper = N - 1;
-	sb->lower = 0;
+	/* Set initial values to struct members */
+	sb.upper = N - 1;
+	sb.lower = 0;
 
 	/* Calling the q_sort function */
-	q_sort(sb);
+	printf("\nThread pid: %lu\tCreate qsort thread.\n", me);
+	ret = pthread_create(&start_thread, NULL, q_sort, &sb);
+	if (ret != 0) {
+		fprintf(stderr, "%s: Thread creation failed!\n", __func__);
+	}
+
+	/* Wait starting thread to join */
+	pthread_join(start_thread, NULL);
 
 	/* Last but not least, use helper function to print the sorted array */
-	print_arr(sb->arr, N);
+	print_arr(arr, N);
 
 	return 0;
 }
